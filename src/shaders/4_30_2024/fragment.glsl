@@ -8,7 +8,7 @@ varying vec2 vUvs;
  */
 uniform float uTime;
 uniform vec2 uResolution;
-uniform sampler2D uDiffuse;
+
 
 /**
  * Colors
@@ -48,8 +48,6 @@ float opUnion(float d1, float d2) {
 void main() {
     vec2 pixelCoords = (vUvs - 0.5) * uResolution;
     vec3 color = darkgrey;
-    vec3 video = texture2D(uDiffuse, fract(vUvs * 1.0)).xyz;
-    
 
     const float NUM_BOXES = 24.0;
     const float BOX_FACTOR = 24.0;
@@ -60,7 +58,7 @@ void main() {
         
         boxPos = rotate2D(3.14159 *(i / (NUM_BOXES * 0.5))) * boxPos; 
         boxPos = rotate2D(3.14159 - time * 0.125) * boxPos;
-        boxPos.x += BOX_FACTOR * (BOX_FACTOR / 4.0) + (sin(time * r * 0.5) * BOX_FACTOR * 0.5);
+        boxPos.x += BOX_FACTOR * (BOX_FACTOR / 4.0) + (sin(time * r * 0.5) * BOX_FACTOR);
         boxPos = rotate2D(3.14159 * 0.5) * boxPos;
 
         vec2 shadowOffset = vec2(3.0, 4.0);
@@ -72,18 +70,10 @@ void main() {
         
         float box = sdfTrapezoid( boxPos, 5.0, 14.0, BOX_FACTOR) - 1.5;
         color = mix(vec3(abs(cos(vUvs.x + time * 0.25)), 0.0, abs(sin(vUvs.y + time * 0.25))), color, smoothstep(0.0, 1.0, box));
-        color = mix(video, color, smoothstep(0.0, 1.0, box));
+
+
+
     }
-
-    // CIRCLE
-    vec2 circleShadowOffset = vec2(3.0, 4.0);
-    float circleShadow = length(pixelCoords) - 100.0;
-    color = mix(vec3(0.0, 0.0, 0.0), color, smoothstep(-12.0, 12.0, circleShadow));
-
-    float circleGlow = length(pixelCoords) - 100.0;
-    color += 2.0 * mix(vec3(vUvs.x, 0.0, vUvs.y), vec3(0.0, 0.0, 0.0), smoothstep(-4.0 - abs(sin(time * 2.0) * 2.0), 4.0 + abs(sin(time * 2.0) * 2.0) , circleGlow));
-    float circle = length(pixelCoords) - 100.0;
-    color = mix(video, color, smoothstep(0.0, 1.0, circle));
 
     gl_FragColor = vec4(color, 1.0);
 }
