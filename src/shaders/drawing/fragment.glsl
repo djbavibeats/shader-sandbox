@@ -65,11 +65,12 @@ void main() {
         float boxShadow = sdfTrapezoid( boxPos + shadowOffset, 5.0, 14.0, BOX_FACTOR) - 1.5;
         color = mix(vec3(0.0, 0.0, 0.0), color, smoothstep(-12.0, 12.0, boxShadow));
 
+        float boxGlow = sdfTrapezoid( boxPos, 5.0, 14.0, BOX_FACTOR) - 1.5;
+        color += 2.0 * mix(vec3(vUvs.x, 0.0, vUvs.y), vec3(0.0, 0.0, 0.0), smoothstep(-4.0 - abs(sin(time * 2.0) * 2.0), 4.0 + abs(sin(time * 2.0) * 2.0), boxGlow));
+        
         float box = sdfTrapezoid( boxPos, 5.0, 14.0, BOX_FACTOR) - 1.5;
         color = mix(vec3(abs(cos(vUvs.x + time * 0.25)), 0.0, abs(sin(vUvs.y + time * 0.25))), color, smoothstep(0.0, 1.0, box));
 
-        float boxGlow = sdfTrapezoid( boxPos, 5.0, 14.0, BOX_FACTOR) - 1.5;
-        color += 5.0 * mix(vec3(vUvs.x, 0.0, vUvs.y), vec3(0.0, 0.0, 0.0), smoothstep(-4.0 - abs(sin(time * 2.0) * 2.0), 4.0 + abs(sin(time * 2.0) * 2.0), boxGlow));
 
 
     }
