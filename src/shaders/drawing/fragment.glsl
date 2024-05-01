@@ -38,7 +38,7 @@ vec3 drawGrid(vec3 color, vec2 spacing) {
 float sdfCircle(vec2 pos, vec2 spacing, float count, float radius, float time) {
     float d = length(pos / spacing);
     if (d < radius) {
-        d = abs(sin(d * count + time * 5.0)); 
+        d = abs(sin(d * count + time * 25.0)); 
         return d;
     }
     return 0.0;
@@ -85,24 +85,24 @@ void main() {
     vec2 pixelCoords = (vUvs - 0.5) * uResolution;
     vec2 spacing = vec2(50.0, 50.0);
 
-    float time = uTime * 0.75;
+    float time = uTime * 0.35;
     
     vec3 color = white;
     color = drawBackground(color);
     float result = 0.0;
-    float NUM_CIRCLES = 10.0;
+    float NUM_CIRCLES = 25.0;
     for (float i = 0.0; i < NUM_CIRCLES; i += 1.0) {
 
         vec2 offset = vec2(i * 150.0 - (uResolution.x / 1.1), i * 50.0 - (uResolution.y / 1.8)) * hash(vec2(i));
         float size = fract(0.18 * (i + 5.5)) * 2.25;
-        float opacity = remap(sin(hash(vec2(i) + time * 0.01)), -1.0, 1.0, 0.5, 1.0);
+        float opacity = remap(sin(hash(vec2(i) + time * 0.05)), -1.0, 1.0, 0.125, 1.0);
         vec2 boxPos = pixelCoords;
         boxPos = rotate2D(3.14159 - time * 0.1 * i) * boxPos;
         boxPos.x += sin(hash(vec2(i+0.5)) * uTime) * 50.0;
         boxPos.y += cos(hash(vec2(i+0.5)) * uTime) * 75.0;
 
         float circle = opacity * abs(sdfCircle(boxPos - offset, spacing, 16.0, size, time ));
-        color = mix(color, vec3(0.72549, 0.78431, 0.90196), smoothstep(0.0, 1.0, circle));
+        color = mix(color, vec3(0.90549, 0.78431, 0.90196), smoothstep(0.0, 1.0, circle));
     }
     
 
