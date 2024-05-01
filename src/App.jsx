@@ -3,8 +3,8 @@ import { Canvas, extend, useThree, useFrame } from '@react-three/fiber'
 import { useRef, useEffect, useState } from 'react'
 import * as THREE from 'three'
 
-import vertex from './shaders/4_30_2024/vertex.glsl'
-import fragment from './shaders/4_30_2024/fragment.glsl'
+import vertex from './shaders/drawing/vertex.glsl'
+import fragment from './shaders/drawing/fragment.glsl'
 
 const ShaderObjectMaterial = new shaderMaterial(
   {

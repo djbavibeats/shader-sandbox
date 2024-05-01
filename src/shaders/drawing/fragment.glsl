@@ -16,6 +16,42 @@ uniform sampler2D uDiffuse;
 vec3 white = vec3(1.0);
 vec3 black = vec3(0.0);
 vec3 darkgrey = vec3(0.15, 0.15, 0.135);
+vec3 red = vec3(1.0, 0.0, 0.0);
+
+float inverseLerp(float v, float minValue, float maxValue) {
+  return (v - minValue) / (maxValue - minValue);
+}
+
+float remap(float v, float inMin, float inMax, float outMin, float outMax) {
+  float t = inverseLerp(v, inMin, inMax);
+  return mix(outMin, outMax, t);
+}
+
+vec3 drawGrid(vec3 color, vec2 spacing) {
+    vec2 cell = abs(fract(vUvs * uResolution / spacing) - 0.5);
+    float line = 1.0 - max(cell.x, cell.y) * 2.0;
+    color = mix(black, color, smoothstep(0.00, 0.05, line));
+
+    return color;
+}
+
+float sdfCircle(vec2 pos, vec2 spacing, float count, float radius, float time) {
+    float d = length(pos / spacing);
+    if (d < radius) {
+        d = abs(sin(d * count + time * 5.0)); 
+        return d;
+    }
+    return 0.0;
+}
+
+float hash(vec2 v) {
+    float t = dot(v, vec2(36.5323, 73.945));
+    return sin(t);
+}
+
+float random (vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+}
 
 mat2 rotate2D( float angle ) {
     mat2 t = mat2(
@@ -25,65 +61,50 @@ mat2 rotate2D( float angle ) {
     return t;
 }
 
-float hash(vec2 v) {
-    float t = dot(v, vec2(36.5323, 73.945));
-    return sin(t);
-}
-
-float dot2(in vec2 v ) { return dot(v,v); }
-float sdfTrapezoid( vec2 p, float r1, float r2, float he ) {
-    vec2 k1 = vec2(r2,he);
-    vec2 k2 = vec2(r2-r1,2.0*he);
-    p.x = abs(p.x);
-    vec2 ca = vec2(p.x-min(p.x,(p.y<0.0)?r1:r2), abs(p.y)-he);
-    vec2 cb = p - k1 + k2*clamp( dot(k1-p,k2)/dot2(k2), 0.0, 1.0 );
-    float s = (cb.x<0.0 && ca.y<0.0) ? -1.0 : 1.0;
-    return s*sqrt( min(dot2(ca),dot2(cb)) );
-}
-
 float opUnion(float d1, float d2) {
     return min(d1, d2);
 }
 
+float opIntersection(float d1, float d2) {
+    return max(d1, d2);
+}
+
+float opSubtraction(float d1, float d2) {
+    return max(-d1, d2);
+}
+
+vec3 drawBackground (vec3 color) {
+    vec3 gradient = mix(
+        vec3(0.50196, 0.81569, 0.78039),
+        vec3(0.87843, 0.76470, 0.98823),
+        smoothstep(0.0, 1.0, pow(vUvs.x * vUvs.y, 1.0))
+    );
+    return gradient;
+}
 void main() {
     vec2 pixelCoords = (vUvs - 0.5) * uResolution;
-    vec3 color = darkgrey;
-    vec3 video = texture2D(uDiffuse, fract(vUvs * 1.0)).xyz;
-    
+    vec2 spacing = vec2(50.0, 50.0);
 
-    const float NUM_BOXES = 24.0;
-    const float BOX_FACTOR = 24.0;
     float time = uTime * 0.75;
-    for (float i = 0.0; i < NUM_BOXES; i += 1.0) {
+    
+    vec3 color = white;
+    color = drawBackground(color);
+    float result = 0.0;
+    float NUM_CIRCLES = 10.0;
+    for (float i = 0.0; i < NUM_CIRCLES; i += 1.0) {
+
+        vec2 offset = vec2(i * 150.0 - (uResolution.x / 1.1), i * 50.0 - (uResolution.y / 1.8)) * hash(vec2(i));
+        float size = fract(0.18 * (i + 5.5)) * 2.25;
+        float opacity = remap(sin(hash(vec2(i) + time * 0.01)), -1.0, 1.0, 0.5, 1.0);
         vec2 boxPos = pixelCoords;
-        float r = hash(vec2(i * 13.0)) * 1.5 + 2.5; 
-        
-        boxPos = rotate2D(3.14159 *(i / (NUM_BOXES * 0.5))) * boxPos; 
-        boxPos = rotate2D(3.14159 - time * 0.125) * boxPos;
-        boxPos.x += BOX_FACTOR * (BOX_FACTOR / 4.0) + (sin(time * r * 0.5) * BOX_FACTOR * 0.5);
-        boxPos = rotate2D(3.14159 * 0.5) * boxPos;
+        boxPos = rotate2D(3.14159 - time * 0.1 * i) * boxPos;
+        boxPos.x += sin(hash(vec2(i+0.5)) * uTime) * 50.0;
+        boxPos.y += cos(hash(vec2(i+0.5)) * uTime) * 75.0;
 
-        vec2 shadowOffset = vec2(3.0, 4.0);
-        float boxShadow = sdfTrapezoid( boxPos + shadowOffset, 5.0, 14.0, BOX_FACTOR) - 1.5;
-        color = mix(vec3(0.0, 0.0, 0.0), color, smoothstep(-12.0, 12.0, boxShadow));
-
-        float boxGlow = sdfTrapezoid( boxPos, 5.0, 14.0, BOX_FACTOR) - 1.5;
-        color += 2.0 * mix(vec3(vUvs.x, 0.0, vUvs.y), vec3(0.0, 0.0, 0.0), smoothstep(-4.0 - abs(sin(time * 2.0) * 2.0), 4.0 + abs(sin(time * 2.0) * 2.0), boxGlow));
-        
-        float box = sdfTrapezoid( boxPos, 5.0, 14.0, BOX_FACTOR) - 1.5;
-        color = mix(vec3(abs(cos(vUvs.x + time * 0.25)), 0.0, abs(sin(vUvs.y + time * 0.25))), color, smoothstep(0.0, 1.0, box));
-        color = mix(video, color, smoothstep(0.0, 1.0, box));
+        float circle = opacity * abs(sdfCircle(boxPos - offset, spacing, 16.0, size, time ));
+        color = mix(color, vec3(0.72549, 0.78431, 0.90196), smoothstep(0.0, 1.0, circle));
     }
-
-    // CIRCLE
-    vec2 circleShadowOffset = vec2(3.0, 4.0);
-    float circleShadow = length(pixelCoords) - 100.0;
-    color = mix(vec3(0.0, 0.0, 0.0), color, smoothstep(-12.0, 12.0, circleShadow));
-
-    float circleGlow = length(pixelCoords) - 100.0;
-    color += 2.0 * mix(vec3(vUvs.x, 0.0, vUvs.y), vec3(0.0, 0.0, 0.0), smoothstep(-4.0 - abs(sin(time * 2.0) * 2.0), 4.0 + abs(sin(time * 2.0) * 2.0) , circleGlow));
-    float circle = length(pixelCoords) - 100.0;
-    color = mix(video, color, smoothstep(0.0, 1.0, circle));
+    
 
     gl_FragColor = vec4(color, 1.0);
 }
