@@ -1,5 +1,5 @@
 import { OrthographicCamera, OrbitControls, shaderMaterial, useVideoTexture } from '@react-three/drei'
-import { Canvas, extend, useThree, useFrame } from '@react-three/fiber'
+import { Canvas, extend, useThree, useFrame, useLoader } from '@react-three/fiber'
 import { useRef, useEffect, useState } from 'react'
 import * as THREE from 'three'
 
@@ -27,8 +27,12 @@ const debounce = (func) => {
 }
 window.addEventListener('resize', debounce(function(e) { location.reload() }))
 
-const ShaderObject = ({ cameraStream, isCamera }) => {
+const ShaderObject = ({ cameraStream, isCamera, isTexture }) => {
   const shaderObject = useRef()
+  // Enable next line if this is a texture based shader
+  // const shaderTexture = useLoader(THREE.TextureLoader, '/textures/rgby.png')
+  // shaderTexture.minFilter = THREE.NearestFilter
+  // shaderTexture.magFilter = THREE.NearestFilter
 
   // Enable next line if this is a camera based shader
   // const cameraTexture = useVideoTexture(cameraStream)
@@ -42,6 +46,9 @@ const ShaderObject = ({ cameraStream, isCamera }) => {
   useEffect(() => {
     if (isCamera) {
       shaderObject.current.material.uDiffuse = cameraTexture
+    }
+    if (isTexture) {
+      shaderObject.current.material.uDiffuse = shaderTexture
     }
   }, [])
 
@@ -99,7 +106,7 @@ export default function App() {
           near={ 0.1 }
           far={ 1000 }
         />
-        <Scene isCamera={ false } />
+        <Scene isCamera={ false } isTexture={ false } />
         {/* {
           cameraStream &&
             <CameraScene 
