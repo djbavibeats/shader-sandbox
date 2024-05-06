@@ -32,7 +32,7 @@ window.addEventListener('resize', debounce(function(e) { location.reload() }))
 const ShaderObject = ({ cameraStream, isCamera, isTexture }) => {
   const shaderObject = useRef()
   // Enable next line if this is a texture based shader
-  const diffuseTexture1 = useLoader(THREE.TextureLoader, '/textures/dog.jpg')
+  const diffuseTexture1 = useLoader(THREE.TextureLoader, '/textures/test5.jpg')
   diffuseTexture1.minFilter = THREE.NearestFilter
   diffuseTexture1.magFilter = THREE.NearestFilter
   const diffuseTexture2 = useLoader(THREE.TextureLoader, '/textures/tomato.jpg')

@@ -27,27 +27,24 @@ void main() {
         
     vec2 pushedCoords = coords;
 
-    float pausePoint = 0.325;
-    float resumePoint = 0.700;
+    float pausePoint = 0.25;
+    float resumePoint = 0.75;
     float stretchDist = resumePoint - pausePoint;
 
     float distToCenter = length(coords - 0.5);
-    float d = sin(distToCenter * 128.0 - uTime * 0.75);
+    float d = sin(distToCenter * 32.0 - uTime * 0.5);
     vec2 dir = normalize(pushedCoords - 0.5);
     vec2 rippleCoords = pushedCoords + d * dir;
 
-    float time = sin(uTime * 0.25);
-    // float time = fract(uTime * 0.125);
+    float time = abs(sin(uTime * 0.125));
     color = texture2D(uDiffuse1, pushedCoords).xyz;
     if (time > pausePoint && time < resumePoint) {
         if (pushedCoords.y > pausePoint && pushedCoords.y < time) {
             pushedCoords.y = pausePoint;
             if (
-                length(coords - vec2(0.5, 0.5)) < (stretchDist / 2.0 - 0.07)
+                length(coords - vec2(0.5, 0.5)) < (stretchDist / 2.0 - 0.05)
             ) {
-                // pushedCoords = pushedCoords;
                 color = texture2D(uDiffuse1, rippleCoords).xyz;
-                color *= vec3(1.0);
             } else {
                 color = texture2D(uDiffuse1, pushedCoords).xyz;
             }
@@ -64,24 +61,21 @@ void main() {
         if (pushedCoords.y > resumePoint) {
             pushedCoords.y = pushedCoords.y - stretchDist;
             color = texture2D(uDiffuse1, pushedCoords).xyz;
-        // } else if (pushedCoords.y > timemap2) {
-        } else if (pushedCoords.y > pausePoint) {
+        } else if (pushedCoords.y > timemap2) {
             pushedCoords.y = pausePoint;
             if (
-                length(coords - vec2(0.5, 0.5)) < (stretchDist / 2.0 - 0.07)
+                length(coords - vec2(0.5, 0.5)) < (stretchDist / 2.0 - 0.05)
             ) {
                 pushedCoords = pushedCoords;
                 color = texture2D(uDiffuse1, rippleCoords).xyz;
-                color *= vec3(1.0);
             } else {
                 color = texture2D(uDiffuse1, pushedCoords).xyz;
             }
         } else {
-            // pushedCoords.y = pushedCoords.y - timemap;
+            pushedCoords.y = pushedCoords.y - timemap;
             color = texture2D(uDiffuse1, pushedCoords).xyz;
         }
     }
     
-    // color = texture2D(uDiffuse1, pushedCoords).xyz;
     gl_FragColor = vec4(color, 1.0);
 }
