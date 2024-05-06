@@ -10,7 +10,9 @@ const ShaderObjectMaterial = new shaderMaterial(
   {
     uTime: 0.0,
     uResolution: new THREE.Vector2( window.innerWidth, window.innerHeight ),
-    uDiffuse: null
+    uDiffuse1: null,
+    uDiffuse2: null, 
+    uVignette: null
   },
   vertex,
   fragment
@@ -30,9 +32,15 @@ window.addEventListener('resize', debounce(function(e) { location.reload() }))
 const ShaderObject = ({ cameraStream, isCamera, isTexture }) => {
   const shaderObject = useRef()
   // Enable next line if this is a texture based shader
-  // const shaderTexture = useLoader(THREE.TextureLoader, '/textures/rgby.png')
-  // shaderTexture.minFilter = THREE.NearestFilter
-  // shaderTexture.magFilter = THREE.NearestFilter
+  const diffuseTexture1 = useLoader(THREE.TextureLoader, '/textures/dog.jpg')
+  diffuseTexture1.minFilter = THREE.NearestFilter
+  diffuseTexture1.magFilter = THREE.NearestFilter
+  const diffuseTexture2 = useLoader(THREE.TextureLoader, '/textures/tomato.jpg')
+  diffuseTexture2.minFilter = THREE.NearestFilter
+  diffuseTexture2.magFilter = THREE.NearestFilter
+  const vignette = useLoader(THREE.TextureLoader, '/textures/vignette.jpg')
+  vignette.minFilter = THREE.NearestFilter
+  vignette.magFilter = THREE.NearestFilter
 
   // Enable next line if this is a camera based shader
   // const cameraTexture = useVideoTexture(cameraStream)
@@ -48,7 +56,9 @@ const ShaderObject = ({ cameraStream, isCamera, isTexture }) => {
       shaderObject.current.material.uDiffuse = cameraTexture
     }
     if (isTexture) {
-      shaderObject.current.material.uDiffuse = shaderTexture
+      shaderObject.current.material.uDiffuse1 = diffuseTexture1
+      shaderObject.current.material.uDiffuse2 = diffuseTexture2
+      shaderObject.current.material.uVignette = vignette
     }
   }, [])
 
@@ -62,13 +72,13 @@ const ShaderObject = ({ cameraStream, isCamera, isTexture }) => {
   </mesh>
 }
 
-const Scene = ({ isCamera }) => {
+const Scene = ({ isCamera, isTexture }) => {
   useThree((state) => {
     state.camera.position.set(0, 0, 1)
   })
 
   return (<>
-    <ShaderObject isCamera={ isCamera } />
+    <ShaderObject isCamera={ isCamera } isTexture={ isTexture }/>
   </>)
 }
 
@@ -106,7 +116,7 @@ export default function App() {
           near={ 0.1 }
           far={ 1000 }
         />
-        <Scene isCamera={ false } isTexture={ false } />
+        <Scene isCamera={ false } isTexture={ true } />
         {/* {
           cameraStream &&
             <CameraScene 
