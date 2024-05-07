@@ -3,15 +3,15 @@ import { Canvas, extend, useThree, useFrame, useLoader } from '@react-three/fibe
 import { useRef, useEffect, useState } from 'react'
 import * as THREE from 'three'
 
-import vertex from './shaders/drawing/vertex.glsl'
-import fragment from './shaders/drawing/fragment.glsl'
+import vertex from './shaders/5_6_2024/vertex.glsl'
+import fragment from './shaders/5_6_2024/fragment.glsl'
 
 const ShaderObjectMaterial = new shaderMaterial(
   {
     uTime: 0.0,
     uResolution: new THREE.Vector2( window.innerWidth, window.innerHeight ),
     uDiffuse1: null,
-    uDiffuse2: null, 
+    uDiffuse2: null,
     uVignette: null
   },
   vertex,
