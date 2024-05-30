@@ -4,12 +4,13 @@ import { useRef, useEffect, useState } from 'react'
 import * as THREE from 'three'
 
 import vertex from './shaders/drawing/vertex.glsl'
-import fragment from './shaders/drawing/fragment.glsl'
+import fragment from './shaders/drawing/fragment2.glsl'
 
 const ShaderObjectMaterial = new shaderMaterial(
   {
     uTime: 0.0,
     uResolution: new THREE.Vector2( window.innerWidth, window.innerHeight ),
+    uMouse: new THREE.Vector2(0.0, 0.0),
     uDiffuse1: null,
     uDiffuse2: null,
     uVignette: null
@@ -32,15 +33,17 @@ window.addEventListener('resize', debounce(function(e) { location.reload() }))
 const ShaderObject = ({ cameraStream, isCamera, isTexture }) => {
   const shaderObject = useRef()
   // Enable next line if this is a texture based shader
-  const diffuseTexture1 = useLoader(THREE.TextureLoader, '/textures/test5.jpg')
+  const diffuseTexture1 = useLoader(THREE.TextureLoader, '/textures/dog.jpg')
   diffuseTexture1.minFilter = THREE.NearestFilter
   diffuseTexture1.magFilter = THREE.NearestFilter
-  const diffuseTexture2 = useLoader(THREE.TextureLoader, '/textures/tomato.jpg')
-  diffuseTexture2.minFilter = THREE.NearestFilter
-  diffuseTexture2.magFilter = THREE.NearestFilter
+  const diffuseTexture2 = useLoader(THREE.TextureLoader, '/textures/plants.jpg')
+  // diffuseTexture2.minFilter = THREE.NearestFilter
+  // diffuseTexture2.magFilter = THREE.NearestFilter
   const vignette = useLoader(THREE.TextureLoader, '/textures/vignette.jpg')
   vignette.minFilter = THREE.NearestFilter
   vignette.magFilter = THREE.NearestFilter
+
+  const { mouse } = useThree()
 
   // Enable next line if this is a camera based shader
   // const cameraTexture = useVideoTexture(cameraStream)
@@ -64,6 +67,9 @@ const ShaderObject = ({ cameraStream, isCamera, isTexture }) => {
 
   useFrame((state) => {
     shaderObject.current.material.uTime = state.clock.elapsedTime
+    shaderObject.current.material.uMouse = mouse
+    // console.log(mouse.x)
+
   })
 
   return <mesh position={[ 0.5, 0.5, 0.0 ]}  scale={ 1.0 } ref={ shaderObject }>
@@ -92,19 +98,43 @@ const CameraScene = ({ cameraStream, isCamera }) => {
   </>)
 }
 
+function useMousePosition() {
+  const [mousePosition, setMousePosition] = useState({ x: null, y: null });
+
+  useEffect(() => {
+    const mouseMoveHandler = (event) => {
+      const { clientX, clientY } = event
+      setMousePosition({ x: clientX, y: clientY })
+    }
+    document.addEventListener("mousemove", mouseMoveHandler)
+
+    return () => {
+      document.removeEventListener("mousemove", mouseMoveHandler)
+    }
+  }, [])
+
+  return mousePosition
+}
+
 export default function App() {
   const [ cameraPermissionsGranted, setCameraPermissionsGranted ] = useState(false)
   const [ cameraStream, setCameraStream ] = useState()
   const isCamera = false
+  const cursor = useRef()
+  const { x, y } = useMousePosition()
 
   const activeCamera = async () => {
     setCameraStream(await navigator.mediaDevices.getUserMedia({ video: true }))
     setCameraPermissionsGranted(true)
   }
-  useEffect(() => {
-  }, [])
+
+  // useEffect(() => {
+  // }, [])
+
   return (
     <>
+      <div className="dot" style={{ top: `${y}px`, left: `${x}px` }}></div>
+      <div className="ring" style={{ top: `${y}px`, left: `${x}px` }}></div>
       <Canvas>
         {/* <OrbitControls /> */}
         <OrthographicCamera

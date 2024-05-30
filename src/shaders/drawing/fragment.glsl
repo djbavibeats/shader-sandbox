@@ -1,118 +1,166 @@
 varying vec2 vUvs;
 
-uniform float uTime;
 uniform vec2 uResolution;
+uniform vec2 uMouse;
+uniform float uTime;
 
-vec3 hash( vec3 p ) // replace this by something better
-{
-	p = vec3( dot(p,vec3(127.1,311.7, 74.7)),
-            dot(p,vec3(269.5,183.3,246.1)),
-            dot(p,vec3(113.5,271.9,124.6)));
+#define PI 3.14159265359
 
-	return -1.0 + 2.0*fract(sin(p)*43758.5453123);
+float inverseLerp(float v, float minValue, float maxValue) {
+  return (v - minValue) / (maxValue - minValue);
 }
 
-float noise( in vec3 p )
-{
-  vec3 i = floor( p );
-  vec3 f = fract( p );
-	
-	vec3 u = f*f*(3.0-2.0*f);
-
-  return mix( mix( mix( dot( hash( i + vec3(0.0,0.0,0.0) ), f - vec3(0.0,0.0,0.0) ), 
-                        dot( hash( i + vec3(1.0,0.0,0.0) ), f - vec3(1.0,0.0,0.0) ), u.x),
-                   mix( dot( hash( i + vec3(0.0,1.0,0.0) ), f - vec3(0.0,1.0,0.0) ), 
-                        dot( hash( i + vec3(1.0,1.0,0.0) ), f - vec3(1.0,1.0,0.0) ), u.x), u.y),
-              mix( mix( dot( hash( i + vec3(0.0,0.0,1.0) ), f - vec3(0.0,0.0,1.0) ), 
-                        dot( hash( i + vec3(1.0,0.0,1.0) ), f - vec3(1.0,0.0,1.0) ), u.x),
-                   mix( dot( hash( i + vec3(0.0,1.0,1.0) ), f - vec3(0.0,1.0,1.0) ), 
-                        dot( hash( i + vec3(1.0,1.0,1.0) ), f - vec3(1.0,1.0,1.0) ), u.x), u.y), u.z );
+float remap(float v, float inMin, float inMax, float outMin, float outMax) {
+  float t = inverseLerp(v, inMin, inMax);
+  return mix(outMin, outMax, t);
 }
 
-float fbm(vec3 p, int octaves, float persistence, float lacunarity) {
-  float amplitude = 1.0;
-  float frequency = 1.0;
-  float total = 0.0;
-  float normalization = 0.0;
+/**
+*   Transform Functions
+*/
+mat3 rotateX(float angle) {
+  float s = sin(angle);
+  float c = cos(angle);
+  return mat3(1, 0, 0, 0, c, -s, 0, s, c);
+}
 
-  for (int i = 0; i < octaves; ++i) {
-    float noiseValue = noise(p * frequency);
-    total += noiseValue * amplitude;
-    normalization += amplitude;
-    amplitude *= persistence;
-    frequency *= lacunarity;
+mat3 rotateY(float angle) {
+  float s = sin(angle);
+  float c = cos(angle);
+
+  return mat3(c, 0, s, 0, 1, 0, -s, 0, c);
+}
+
+mat3 rotateZ(float angle) {
+    float s = sin(angle);
+    float c = cos(angle);
+
+    return mat3(c, -s, 0, s, c, 0, 0, 0, 1);
+}
+
+/**
+*   SDFs
+*/
+float sdfSphere(vec3 pos, float rad) {
+  return length(pos) - rad;
+}
+
+float sdfBox(vec3 pos, vec3 box) {
+  vec3 q = abs(pos) - box;
+  return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+float sdfTorus(vec3 pos, vec2 torus) {
+  vec2 q = vec2(length(pos.xz) - torus.x, pos.y);
+  return length(q) - torus.y;
+}
+
+float sdfPlane(vec3 pos) {
+  return pos.y;
+}
+
+struct MaterialData {
+  vec3 color;
+  float dist;
+};
+
+vec3 RED = vec3(1.0, 0.0, 0.0);
+vec3 BLUE = vec3(0.0, 0.0, 1.0);
+vec3 GREEN = vec3(0.0, 1.0, 0.0);
+vec3 GRAY = vec3(0.5);
+vec3 WHITE = vec3(1.0);
+
+// Calculates the overall SDF for the scene.
+MaterialData map(vec3 pos) {
+  // Result 
+  // Initialze the result material with the first object
+  // Result contains MaterialData for the entire scene
+  MaterialData result = MaterialData(
+    GRAY,
+    sdfPlane(pos - vec3(0.0, -2.0, 0.0))
+  );
+
+  float dist;
+
+  // Draw the first box
+  dist = sdfBox(pos - vec3(-2.0, -0.85, 5.0), vec3(1.0));
+  // If the point is inside the first box sdf, paint it red, else stay the same
+  if (dist < result.dist) {
+    result.color = RED;
+  }
+  result.dist = min(result.dist, dist);
+
+  dist = sdfBox(pos - vec3(2.0, -0.85, 5.0), vec3(1.0));
+  // If the point is inside the second box sdf, paint it blue else stay the same
+  if (dist < result.dist) {
+    result.color = BLUE;
+  }
+  result.dist = min(result.dist, dist);
+
+  dist = sdfTorus(
+    (pos - vec3(0.0, 1.85, 5.0)) * rotateX(uTime)
+    , vec2(1.0, 0.4)
+  );
+  // If the point is inside the first torus sdf, paint it green else stay the same
+  if (dist < result.dist) {
+    result.color = GREEN;
+  }
+  result.dist = min(result.dist, dist);
+
+  return result;
+}
+
+// Performs sphere tracing for the scene.
+// Returns a color for the current point.
+const int NUM_STEPS  = 256;
+const float MAX_DIST = 1000.0;
+
+vec3 RayMarch(vec3 cameraOrigin, vec3 cameraDir) {
+  vec3 pos;
+
+  // Just initializing, no real material info here
+  MaterialData material = MaterialData(vec3(0.0), 0.0);
+
+  for (int i = 0; i < NUM_STEPS; ++i) {
+    pos = cameraOrigin + material.dist * cameraDir;
+
+    MaterialData result = map(pos);
+
+    // Case 1: distToScene < 0, intersected scene.
+    // BREAK
+    if (result.dist < 0.001) {
+      // Break and just return the current color
+      break;
+    }
+    material.dist += result.dist;
+    material.color = result.color;
+
+    // Case 2: dist > MAX_DIST, out of the scene entirely.
+    // This happens when we don't hit anything
+    // So this is basically the undefined background, this point is out of bounds
+    // RETURN
+    if (material.dist > MAX_DIST) {
+      return vec3(0.0);
+    }
+
+    // Case 3: Loop around, do nothing.
   }
 
-  total /= normalization;
-  total = smoothstep(-1.0, 1.0, total);
-
-  return total;
-}
-
-vec3 GenerateSky() {
-    vec3 color1 = vec3(0.40, 0.60, 0.90);
-    vec3 color2 = vec3(0.10, 0.15, 0.40);
-    return mix(
-        color1, color2, smoothstep(0.875, 1.0, vUvs.y)
-    );
-}
-
-vec3 DrawMountains(
-        vec3 background, vec3 mountainColor, vec2 pixelCoords, float depth
-    ) {
-    float y = fbm( 
-        vec3(depth + pixelCoords.x / 256.0, 1.432, 3.643), 6, 0.5, 2.0
-    ) * 256.0;
-    vec3 fogColor = vec3(0.40, 0.60, 0.90);
-    float fogFactor = smoothstep(0.0, 8000.0, depth) * 0.5;
-
-    float heightFactor = smoothstep(256.0, -512.00, pixelCoords.y);
-    heightFactor *= heightFactor;
-    fogFactor = mix(heightFactor, fogFactor, fogFactor);
-
-    mountainColor = mix(mountainColor, fogColor, fogFactor);
-
-    float sdfMountain = pixelCoords.y - y;
-
-    float blur = 1.0 
-    + smoothstep(200.0, 6000.0, depth) * 128.0
-    + smoothstep(200.0, -1400.0, depth) * 128.0
-    ;
-
-    vec3 color = mix(
-        mountainColor, 
-        background, 
-        smoothstep(0.0, blur, sdfMountain));
-
-    return color;
+  // Finished loop
+  return vec3(material.color);
 }
 
 void main() {
     vec2 pixelCoords = (vUvs - 0.5) * uResolution;
-    vec3 color = GenerateSky();
 
-    vec2 timeOffset = vec2(uTime * 50.0, 0.0) * 1.0;
 
-    vec2 mountainCoords = (pixelCoords - vec2(0.0, 400.0)) * 8.0 + timeOffset;
-    color = DrawMountains(color, vec3(0.5), mountainCoords, 6000.0);
+    // Camera Origin
+    vec3 rayOrigin = vec3(0.0, 0.0, 0.0);
 
-    mountainCoords = (pixelCoords - vec2(0.0, 360.0)) * 4.0 + timeOffset;
-    color = DrawMountains(color, vec3(0.45), mountainCoords, 3200.0);
+    // Camera Direction
+    vec3 rayDir = normalize(vec3(pixelCoords * 2.0 / uResolution.y, 1.0));
 
-    mountainCoords = (pixelCoords - vec2(0.0, 280.0)) * 2.0 + timeOffset;
-    color = DrawMountains(color, vec3(0.4), mountainCoords, 1600.0);
+    vec3 color = RayMarch(rayOrigin, rayDir);
 
-    mountainCoords = (pixelCoords - vec2(0.0, 150.0)) * 1.0 + timeOffset;
-    color = DrawMountains(color, vec3(0.35), mountainCoords, 800.0);
-
-    mountainCoords = (pixelCoords - vec2(0.0, -100.0)) * 0.5 + timeOffset;
-    color = DrawMountains(color, vec3(0.3), mountainCoords, 400.0);
-
-    mountainCoords = (pixelCoords - vec2(0.0, -500.0)) * 0.25 + timeOffset;
-    color = DrawMountains(color, vec3(0.25), mountainCoords, 200.0);
-
-    mountainCoords = (pixelCoords - vec2(0.0, -1400.0)) * 0.125 + timeOffset;
-    color = DrawMountains(color, vec3(0.2), mountainCoords, 0.0);
-
-    gl_FragColor = vec4(color, 1.0);
+    gl_FragColor = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);
 }
